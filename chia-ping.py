@@ -100,9 +100,7 @@ async def receive(args):
 
         await asyncio.sleep(1)
 
-    transactions = await wallet_client.get_transactions(
-        args.wallet, transaction_count - 1, transaction_count
-    )
+    transactions = await wallet_client.get_transactions(args.wallet, 0, 1)
     transaction = transactions[0]
     logging.debug(transaction)
 
