@@ -89,11 +89,9 @@ async def receive(args):
     while True:
         transaction_count = await wallet_client.get_transaction_count(args.wallet)
 
-        logging.debug(
-            f"Waiting for new transaction, initial_count={initial_transaction_count} count={transaction_count}"
-        )
-
-        assert transaction_count >= initial_transaction_count
+        # logging.debug(
+        #     f"Waiting for new transaction, initial_count={initial_transaction_count} count={transaction_count}"
+        # )
 
         if transaction_count > initial_transaction_count:
             break
