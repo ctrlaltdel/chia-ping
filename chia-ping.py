@@ -103,10 +103,11 @@ async def receive(args):
     transactions = await wallet_client.get_transactions(
         args.wallet, transaction_count - 1, transaction_count
     )
-
     transaction = transactions[0]
-
     logging.debug(transaction)
+
+    wallet_client.close()
+    await wallet_client.await_closed()
 
     return transaction
 
@@ -145,17 +146,12 @@ async def main():
         logging.basicConfig(level=logging.DEBUG)
 
     if args.responder:
-
-        count = args.count
-
-        while count > 0:
+        while True:
             transaction = await receive(args)
             logging.debug(transaction)
 
             transaction = await send(args)
             logging.debug(transaction)
-
-            count -= 1
 
     else:
         try:
