@@ -4,6 +4,16 @@ A clone of our old friend `ping` using small transactions over the [Chia](https:
 
 This is a toy program I wrote for getting more familiar with the Chia RPC APIs.
 
+Here's how it looks:
+
+```console
+% ./chia-ping.py xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0
+1 mojos from 127.0.0.1: height=1321474 time=38.326266000000004 s
+--- xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0 ping statistics ---
+1 transactions transmitted, 0 transactions confirmed, 1 transactions received, 0 packet loss
+round-trip min/avg/max/stddev = 0/0/0/0 s
+```
+
 ## Installation
 
 ```console
