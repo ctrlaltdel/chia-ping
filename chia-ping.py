@@ -4,9 +4,11 @@ import time
 import argparse
 import logging
 import asyncio
+import statistics
 
 from timeit import default_timer as timer
 from dataclasses import dataclass
+from typing import List
 
 from chia.rpc.wallet_rpc_client import WalletRpcClient
 from chia.util.bech32m import decode_puzzle_hash
@@ -39,18 +41,30 @@ parser.add_argument("--fee", type=float, default=0)
 parser.add_argument("--amount", type=float, default=1)
 
 
-@dataclass
 class Stats:
     sent: int = 0
     confirmed: int = 0
     received: int = 0
 
-    loss: float = 0
+    _durations: List[float] = []
 
-    min: float = 0
-    max: float = 0
-    avg: float = 0
-    stddev: float = 0
+    def add_duration(self, duration: float):
+        self._durations.append(duration)
+
+    def loss(self) -> float:
+        return 1.0 - self.received / self.sent
+
+    def min(self) -> float:
+        return min(self._durations)
+
+    def max(self) -> float:
+        return max(self._durations)
+
+    def avg(self) -> float:
+        return statistics.mean(self._durations)
+
+    def stddev(self) -> float:
+        return statistics.stdev(self._durations)
 
 
 async def send(args, stats):
@@ -121,7 +135,7 @@ async def receive(args, stats):
 async def display(transaction: TransactionRecord, duration, seq):
     logging.debug(f"display({transaction})")
     print(
-        f"{transaction.amount} mojos from ?: seq={seq} height={transaction.confirmed_at_height} time={duration:} s"
+        f"{transaction.amount} mojos from ?: seq={seq} height={transaction.confirmed_at_height} time={duration:.3f} s"
     )
 
 
@@ -129,8 +143,8 @@ async def summary(args, stats):
     logging.debug("summary")
     print(
         f"""--- {args.address} ping statistics ---
-{stats.sent} transactions transmitted, {stats.confirmed} transactions confirmed, {stats.received} transactions received, {stats.loss} packet loss
-round-trip min/avg/max/stddev = {stats.min}/{stats.avg}/{stats.max}/{stats.stddev} s"""
+{stats.sent} transactions transmitted, {stats.confirmed} transactions confirmed, {stats.received} transactions received, {stats.loss():.1f} packet loss
+round-trip min/avg/max/stddev = {stats.min():.3f}/{stats.avg():.3f}/{stats.max():.3f}/{stats.stddev():.3f} s"""
     )
 
 
@@ -169,11 +183,12 @@ async def main():
         try:
             i = 0
             while i <= args.count - 1:
-                transaction = await send(args, stats)
                 start = timer()
-                transaction = await receive(args, stats)
+                outgoing_transaction = await send(args, stats)
+                incoming_transaction = await receive(args, stats)
                 duration = timer() - start
-                await display(transaction, duration, i)
+                stats.add_duration(duration)
+                await display(incoming_transaction, duration, i)
                 i += 1
         except KeyboardInterrupt:
             pass

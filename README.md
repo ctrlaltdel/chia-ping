@@ -1,17 +1,19 @@
 # chia-ping
 
-A clone of our old friend `ping` using small transactions over the [Chia](https://www.chia.net/) blockchain instead of ICMP packets.
+A clone of our old friend `ping` using small transactions over the [Chia](https://www.chia.net/) blockchain instead of ICMP packets to show the round-trip latency of on-chain transactions.
 
 This is a toy program I wrote for getting more familiar with the Chia RPC APIs.
 
 Here's how it looks:
 
 ```console
-% ./chia-ping.py xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0
-1 mojos from 127.0.0.1: height=1321474 time=38.326266000000004 s
+$ ./chia-ping.py -c 3 xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0
+1 mojos from ?: seq=0 height=1325814 time=148.966 s
+1 mojos from ?: seq=1 height=1325831 time=196.025 s
+1 mojos from ?: seq=2 height=1325840 time=99.994 s
 --- xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0 ping statistics ---
-1 transactions transmitted, 0 transactions confirmed, 1 transactions received, 0 packet loss
-round-trip min/avg/max/stddev = 0/0/0/0 s
+3 transactions transmitted, 3 transactions confirmed, 3 transactions received, 0.0 packet loss
+round-trip min/avg/max/stddev = 99.994/148.328/196.025/48.018 s
 ```
 
 ## Installation
