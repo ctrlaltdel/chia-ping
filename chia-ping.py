@@ -53,7 +53,7 @@ class Stats:
     stddev: float = 0
 
 
-async def send(args):
+async def send(args, stats):
     wallet_client = await get_wallet_client()
 
     logging.debug(f"Sending a {args.amount} mojos transaction to {args.address}")
@@ -68,6 +68,7 @@ async def send(args):
         ],
         fee=args.fee,
     )
+    stats.sent += 1
 
     logging.debug(f"Waiting for transaction {transaction.name} to become confirmed")
 
@@ -76,6 +77,7 @@ async def send(args):
         transaction = await wallet_client.get_transaction(args.wallet, transaction.name)
         # logging.debug(transaction)
 
+    stats.confirmed += 1
     logging.debug(f"Transaction {transaction.name} confirmed")
 
     wallet_client.close()
@@ -84,7 +86,7 @@ async def send(args):
     return transaction
 
 
-async def receive(args):
+async def receive(args, stats):
     wallet_client = await get_wallet_client()
 
     initial_transaction_count = await wallet_client.get_transaction_count(args.wallet)
@@ -108,6 +110,7 @@ async def receive(args):
     transactions = await wallet_client.get_transactions(args.wallet, 0, 1)
     transaction = transactions[0]
     logging.debug(f"New transaction {transaction.name} received")
+    stats.received += 1
 
     wallet_client.close()
     await wallet_client.await_closed()
@@ -115,10 +118,10 @@ async def receive(args):
     return transaction
 
 
-async def display(transaction: TransactionRecord, duration):
+async def display(transaction: TransactionRecord, duration, seq):
     logging.debug(f"display({transaction})")
     print(
-        f"{transaction.amount} mojos from 127.0.0.1: height={transaction.confirmed_at_height} time={duration:} s"
+        f"{transaction.amount} mojos from ?: seq={seq} height={transaction.confirmed_at_height} time={duration:} s"
     )
 
 
@@ -146,7 +149,11 @@ async def main():
     args = parser.parse_args()
 
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S%z",
+        )
 
     if args.responder:
         while True:
@@ -158,19 +165,16 @@ async def main():
 
     else:
         try:
-            count = args.count
             stats = Stats()
 
-            while count > 0:
-                transaction = await send(args)
-                stats.sent += 1
+            i = 0
+            while i <= args.count:
+                transaction = await send(args, stats)
                 start = timer()
-                transaction = await receive(args)
-                stats.received += 1
+                transaction = await receive(args, stats)
                 duration = timer() - start
-                await display(transaction, duration)
-
-                count -= 1
+                await display(transaction, duration, i)
+                i += 1
         except KeyboardInterrupt:
             pass
 
