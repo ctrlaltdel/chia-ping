@@ -168,7 +168,7 @@ async def main():
     else:
         try:
             i = 0
-            while i <= args.count:
+            while i <= args.count - 1:
                 transaction = await send(args, stats)
                 start = timer()
                 transaction = await receive(args, stats)
