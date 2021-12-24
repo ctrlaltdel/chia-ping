@@ -155,18 +155,18 @@ async def main():
             datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
 
+    stats = Stats()
+
     if args.responder:
         while True:
-            transaction = await receive(args)
+            transaction = await receive(args, stats)
             logging.debug(transaction)
 
-            transaction = await send(args)
+            transaction = await send(args, stats)
             logging.debug(transaction)
 
     else:
         try:
-            stats = Stats()
-
             i = 0
             while i <= args.count:
                 transaction = await send(args, stats)
