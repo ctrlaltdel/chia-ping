@@ -90,7 +90,7 @@ async def receive(args):
     initial_transaction_count = await wallet_client.get_transaction_count(args.wallet)
 
     logging.debug(
-        "Waiting for incoming transaction, count: {initial_transaction_count}"
+        f"Waiting for incoming transaction, count: {initial_transaction_count}"
     )
 
     while True:
