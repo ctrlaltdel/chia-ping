@@ -56,6 +56,8 @@ class Stats:
 async def send(args):
     wallet_client = await get_wallet_client()
 
+    logging.debug(f"Sending a {args.amount} mojos transaction to {args.address}")
+
     transaction = await wallet_client.send_transaction_multi(
         args.wallet,
         [
@@ -66,12 +68,15 @@ async def send(args):
         ],
         fee=args.fee,
     )
-    # logging.debug(transaction)
+
+    logging.debug(f"Waiting for transaction {transaction.name} to become confirmed")
 
     while not transaction.confirmed:
         time.sleep(1)
         transaction = await wallet_client.get_transaction(args.wallet, transaction.name)
         # logging.debug(transaction)
+
+    logging.debug(f"Transaction {transaction.name} confirmed")
 
     wallet_client.close()
     await wallet_client.await_closed()
@@ -80,11 +85,13 @@ async def send(args):
 
 
 async def receive(args):
-    logging.debug("receive")
-
     wallet_client = await get_wallet_client()
 
     initial_transaction_count = await wallet_client.get_transaction_count(args.wallet)
+
+    logging.debug(
+        "Waiting for incoming transaction, count: {initial_transaction_count}"
+    )
 
     while True:
         transaction_count = await wallet_client.get_transaction_count(args.wallet)
@@ -100,7 +107,7 @@ async def receive(args):
 
     transactions = await wallet_client.get_transactions(args.wallet, 0, 1)
     transaction = transactions[0]
-    logging.debug(transaction)
+    logging.debug(f"New transaction {transaction.name} received")
 
     wallet_client.close()
     await wallet_client.await_closed()

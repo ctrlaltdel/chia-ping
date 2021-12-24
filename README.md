@@ -33,7 +33,7 @@ First, start the responder on one machine with the address of the other wallet.
 machineA $ chia-ping.py -r address_B
 ```
 
-And then, start pinging.
+Get some mojos on address_A from the [faucet](https://faucet.chia.net/) and then, start pinging.
 
 ```console
 machineB $ chia-ping.py address_A
