@@ -7,13 +7,13 @@ This is a toy program I wrote for getting more familiar with the Chia RPC APIs.
 Here's how it looks:
 
 ```console
-$ ./chia-ping.py -c 3 xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0
-1 mojos from ?: seq=0 height=1325814 time=148.966 s
-1 mojos from ?: seq=1 height=1325831 time=196.025 s
-1 mojos from ?: seq=2 height=1325840 time=99.994 s
+$ ./chia-ping.py xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0 -c 3
+1 mojos from xch1gp0m20ygdcyd08asp3qd63my5la7eg58j46k3fkumtq0kw2jekjsr7924v: seq=0 height=1330406 time=114.345 s
+1 mojos from xch1gp0m20ygdcyd08asp3qd63my5la7eg58j46k3fkumtq0kw2jekjsr7924v: seq=1 height=1330410 time=82.524 s
+1 mojos from xch1gp0m20ygdcyd08asp3qd63my5la7eg58j46k3fkumtq0kw2jekjsr7924v: seq=2 height=1330419 time=128.271 s
 --- xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0 ping statistics ---
-3 transactions transmitted, 3 transactions confirmed, 3 transactions received, 0.0 packet loss
-round-trip min/avg/max/stddev = 99.994/148.328/196.025/48.018 s
+3 transactions transmitted, 3 transactions confirmed, 3 transactions received, 0% packet loss
+round-trip min/avg/max/stddev = 82.524/108.380/128.271/23.449 s
 ```
 
 ## Installation

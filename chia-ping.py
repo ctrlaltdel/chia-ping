@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import List
 
 from chia.rpc.wallet_rpc_client import WalletRpcClient
-from chia.util.bech32m import decode_puzzle_hash
+from chia.util.bech32m import decode_puzzle_hash, encode_puzzle_hash
 from chia.util.config import load_config
 from chia.util.default_root import DEFAULT_ROOT_PATH
 from chia.util.ints import uint16
@@ -52,19 +52,31 @@ class Stats:
         self._durations.append(duration)
 
     def loss(self) -> float:
-        return 1.0 - self.received / self.sent
+        return 100 * (1.0 - self.received / self.sent)
 
     def min(self) -> float:
-        return min(self._durations)
+        if self._durations:
+            return min(self._durations)
+        else:
+            return 0.0
 
     def max(self) -> float:
-        return max(self._durations)
+        if self._durations:
+            return max(self._durations)
+        else:
+            return 0.0
 
     def avg(self) -> float:
-        return statistics.mean(self._durations)
+        if self._durations:
+            return statistics.mean(self._durations)
+        else:
+            return 0.0
 
     def stddev(self) -> float:
-        return statistics.stdev(self._durations)
+        if len(self._durations) > 1:
+            return statistics.stdev(self._durations)
+        else:
+            return 0.0
 
 
 async def send(args, stats):
@@ -100,17 +112,17 @@ async def send(args, stats):
     return transaction
 
 
-async def receive(args, stats):
+async def receive(wallet_id, stats):
     wallet_client = await get_wallet_client()
 
-    initial_transaction_count = await wallet_client.get_transaction_count(args.wallet)
+    initial_transaction_count = await wallet_client.get_transaction_count(wallet_id)
 
     logging.debug(
         f"Waiting for incoming transaction, count: {initial_transaction_count}"
     )
 
     while True:
-        transaction_count = await wallet_client.get_transaction_count(args.wallet)
+        transaction_count = await wallet_client.get_transaction_count(wallet_id)
 
         # logging.debug(
         #     f"Waiting for new transaction, initial_count={initial_transaction_count} count={transaction_count}"
@@ -121,7 +133,7 @@ async def receive(args, stats):
 
         await asyncio.sleep(1)
 
-    transactions = await wallet_client.get_transactions(args.wallet, 0, 1)
+    transactions = await wallet_client.get_transactions(wallet_id, 0, 1)
     transaction = transactions[0]
     logging.debug(f"New transaction {transaction.name} received")
     stats.received += 1
@@ -134,16 +146,17 @@ async def receive(args, stats):
 
 async def display(transaction: TransactionRecord, duration, seq):
     logging.debug(f"display({transaction})")
+    from_address = encode_puzzle_hash(transaction.additions[0].puzzle_hash, "xch")
     print(
-        f"{transaction.amount} mojos from ?: seq={seq} height={transaction.confirmed_at_height} time={duration:.3f} s"
+        f"{transaction.amount} mojos from {from_address}: seq={seq} height={transaction.confirmed_at_height} time={duration:.3f} s"
     )
 
 
-async def summary(args, stats):
+async def summary(address, stats):
     logging.debug("summary")
     print(
-        f"""--- {args.address} ping statistics ---
-{stats.sent} transactions transmitted, {stats.confirmed} transactions confirmed, {stats.received} transactions received, {stats.loss():.1f} packet loss
+        f"""--- {address} ping statistics ---
+{stats.sent} transactions transmitted, {stats.confirmed} transactions confirmed, {stats.received} transactions received, {stats.loss():.0f}% packet loss
 round-trip min/avg/max/stddev = {stats.min():.3f}/{stats.avg():.3f}/{stats.max():.3f}/{stats.stddev():.3f} s"""
     )
 
@@ -173,8 +186,12 @@ async def main():
 
     if args.responder:
         while True:
-            transaction = await receive(args, stats)
+            transaction = await receive(args.wallet, stats)
             logging.debug(transaction)
+
+            peer_address = encode_puzzle_hash(
+                transaction.additions[0].puzzle_hash, "xch"
+            )
 
             transaction = await send(args, stats)
             logging.debug(transaction)
@@ -185,7 +202,7 @@ async def main():
             while i <= args.count - 1:
                 start = timer()
                 outgoing_transaction = await send(args, stats)
-                incoming_transaction = await receive(args, stats)
+                incoming_transaction = await receive(args.wallet, stats)
                 duration = timer() - start
                 stats.add_duration(duration)
                 await display(incoming_transaction, duration, i)
@@ -193,7 +210,7 @@ async def main():
         except KeyboardInterrupt:
             pass
 
-        await summary(args, stats)
+        await summary(args.address, stats)
 
 
 if __name__ == "__main__":
