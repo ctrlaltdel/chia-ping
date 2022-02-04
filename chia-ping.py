@@ -1,32 +1,33 @@
-#!./.venv/bin/python
+#!/usr/bin/env python
 
-import time
 import argparse
 import logging
 import asyncio
 import statistics
 
 from timeit import default_timer as timer
-from dataclasses import dataclass
 from typing import List
 
 from chia.rpc.wallet_rpc_client import WalletRpcClient
-from chia.util.bech32m import decode_puzzle_hash, encode_puzzle_hash
+from chia.util.bech32m import decode_puzzle_hash
 from chia.util.config import load_config
 from chia.util.default_root import DEFAULT_ROOT_PATH
 from chia.util.ints import uint16
 from chia.wallet.transaction_record import TransactionRecord
 
+from chia.rpc.wallet_rpc_client import WalletRpcClient
+from chia.types.blockchain_format.coin import Coin
+from chia.util.default_root import DEFAULT_ROOT_PATH
+from chia.util.ints import uint16
+from chia.wallet.transaction_record import TransactionRecord
+
+
 parser = argparse.ArgumentParser(description="Ping using chia transactions.")
-parser.add_argument("address", type=str, help="Address to send the mojos to")
-parser.add_argument(
-    "-r", "--responder", action="store_true", help="respond to incoming pings"
-)
 parser.add_argument(
     "-c",
     "--count",
     type=int,
-    default=1,
+    default=-1,
     help="Stop after sending and receiving count transactions",
 )
 parser.add_argument(
@@ -42,17 +43,12 @@ parser.add_argument("--amount", type=float, default=1)
 
 
 class Stats:
-    sent: int = 0
     confirmed: int = 0
-    received: int = 0
 
     _durations: List[float] = []
 
     def add_duration(self, duration: float):
         self._durations.append(duration)
-
-    def loss(self) -> float:
-        return 100 * (1.0 - self.received / self.sent)
 
     def min(self) -> float:
         if self._durations:
@@ -79,84 +75,20 @@ class Stats:
             return 0.0
 
 
-async def send(args, stats):
-    wallet_client = await get_wallet_client()
+async def display(coin: Coin, duration, seq):
+    # coin {'amount': 1,
+    #  'parent_coin_info': '0x3624c357df3af2dd194d7e2b2ce477c095fefc2f86821beaaa7f4e22cfeaf038',
+    # 'puzzle_hash': '0xf4bab1ca7ffc2bad1e2d5e5adab06a7ea99924da938189fb4cad149628dff21e'}
 
-    logging.debug(f"Sending a {args.amount} mojos transaction to {args.address}")
-
-    transaction = await wallet_client.send_transaction_multi(
-        args.wallet,
-        [
-            {
-                "puzzle_hash": decode_puzzle_hash(args.address),
-                "amount": args.amount,
-            }
-        ],
-        fee=args.fee,
-    )
-    stats.sent += 1
-
-    logging.debug(f"Waiting for transaction {transaction.name} to become confirmed")
-
-    while not transaction.confirmed:
-        time.sleep(1)
-        transaction = await wallet_client.get_transaction(args.wallet, transaction.name)
-        # logging.debug(transaction)
-
-    stats.confirmed += 1
-    logging.debug(f"Transaction {transaction.name} confirmed")
-
-    wallet_client.close()
-    await wallet_client.await_closed()
-
-    return transaction
-
-
-async def receive(wallet_id, stats):
-    wallet_client = await get_wallet_client()
-
-    initial_transaction_count = await wallet_client.get_transaction_count(wallet_id)
-
-    logging.debug(
-        f"Waiting for incoming transaction, count: {initial_transaction_count}"
-    )
-
-    while True:
-        transaction_count = await wallet_client.get_transaction_count(wallet_id)
-
-        # logging.debug(
-        #     f"Waiting for new transaction, initial_count={initial_transaction_count} count={transaction_count}"
-        # )
-
-        if transaction_count > initial_transaction_count:
-            break
-
-        await asyncio.sleep(1)
-
-    transactions = await wallet_client.get_transactions(wallet_id, 0, 1)
-    transaction = transactions[0]
-    logging.debug(f"New transaction {transaction.name} received")
-    stats.received += 1
-
-    wallet_client.close()
-    await wallet_client.await_closed()
-
-    return transaction
-
-
-async def display(transaction: TransactionRecord, duration, seq):
-    logging.debug(f"display({transaction})")
-    from_address = encode_puzzle_hash(transaction.additions[0].puzzle_hash, "xch")
-    print(
-        f"{transaction.amount} mojos from {from_address}: seq={seq} height={transaction.confirmed_at_height} time={duration:.3f} s"
-    )
+    logging.debug(f"display({coin})")
+    print(f"{coin.amount} mojos to {coin.puzzle_hash}: seq={seq} time={duration:.2f} s")
 
 
 async def summary(address, stats):
     logging.debug("summary")
     print(
         f"""--- {address} ping statistics ---
-{stats.sent} transactions transmitted, {stats.confirmed} transactions confirmed, {stats.received} transactions received, {stats.loss():.0f}% packet loss
+{stats.confirmed} transactions confirmed
 round-trip min/avg/max/stddev = {stats.min():.3f}/{stats.avg():.3f}/{stats.max():.3f}/{stats.stddev():.3f} s"""
     )
 
@@ -172,6 +104,40 @@ async def get_wallet_client():
     return wallet_client
 
 
+# Send from your default wallet on your machine
+# Wallet has to be running, e.g., chia start wallet
+async def send_money_async(args, amount, address, fee=0):
+    config = load_config(DEFAULT_ROOT_PATH, "config.yaml")
+    self_hostname = config["self_hostname"]  # localhost
+    wallet_rpc_port = config["wallet"]["rpc_port"]  # 9256
+
+    try:
+        logging.debug(f"sending {amount} to {address}...")
+        # create a wallet client
+        wallet_client = await WalletRpcClient.create(
+            self_hostname, uint16(wallet_rpc_port), DEFAULT_ROOT_PATH, config
+        )
+        # send standard transaction
+        res = await wallet_client.send_transaction(args.wallet, amount, address, fee)
+        tx_id = res.name
+        logging.debug(f"waiting until transaction {tx_id} is confirmed...")
+        # wait until transaction is confirmed
+        tx: TransactionRecord = await wallet_client.get_transaction(args.wallet, tx_id)
+        while not tx.confirmed:
+            await asyncio.sleep(5)
+            tx = await wallet_client.get_transaction(args.wallet, tx_id)
+
+        # get coin infos including coin id of the addition with the same puzzle hash
+        logging.debug(f"\ntx {tx_id} is confirmed.")
+        puzzle_hash = decode_puzzle_hash(address)
+        coin = next((c for c in tx.additions if c.puzzle_hash == puzzle_hash), None)
+        logging.debug(coin)
+        return coin
+    finally:
+        wallet_client.close()
+        await wallet_client.await_closed()
+
+
 async def main():
     args = parser.parse_args()
 
@@ -184,33 +150,32 @@ async def main():
 
     stats = Stats()
 
-    if args.responder:
-        while True:
-            transaction = await receive(args.wallet, stats)
-            logging.debug(transaction)
+    wallet_client = await get_wallet_client()
+    address = await wallet_client.get_next_address(args.wallet, True)
 
-            peer_address = encode_puzzle_hash(
-                transaction.additions[0].puzzle_hash, "xch"
-            )
+    print(f"PING {address} {args.amount} mojos of chia with {args.fee} fees.")
 
-            transaction = await send(args, stats)
-            logging.debug(transaction)
+    try:
 
-    else:
-        try:
-            i = 0
-            while i <= args.count - 1:
-                start = timer()
-                outgoing_transaction = await send(args, stats)
-                incoming_transaction = await receive(args.wallet, stats)
-                duration = timer() - start
-                stats.add_duration(duration)
-                await display(incoming_transaction, duration, i)
-                i += 1
-        except KeyboardInterrupt:
-            pass
+        i = 0
+        while i <= args.count - 1:
+            start = timer()
 
-        await summary(args.address, stats)
+            coin = await send_money_async(args, args.amount, address, args.fee)
+
+            stats.confirmed += 1
+
+            duration = timer() - start
+            stats.add_duration(duration)
+            await display(coin, duration, i)
+            i += 1
+    except KeyboardInterrupt:
+        pass
+    finally:
+        wallet_client.close()
+        await wallet_client.await_closed()
+
+    await summary(address, stats)
 
 
 if __name__ == "__main__":
