@@ -1,5 +1,7 @@
 # chia-ping
 
+Here's what happens when a Network Engineer starts playing with blockchains.
+
 A clone of our old friend `ping` using small transactions over the [Chia](https://www.chia.net/) blockchain instead of ICMP packets to show the round-trip latency of on-chain transactions.
 
 This is a toy program I wrote for getting more familiar with the Chia RPC APIs.
@@ -7,13 +9,16 @@ This is a toy program I wrote for getting more familiar with the Chia RPC APIs.
 Here's how it looks:
 
 ```console
-$ ./chia-ping.py xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0 -c 3
-1 mojos from xch1gp0m20ygdcyd08asp3qd63my5la7eg58j46k3fkumtq0kw2jekjsr7924v: seq=0 height=1330406 time=114.345 s
-1 mojos from xch1gp0m20ygdcyd08asp3qd63my5la7eg58j46k3fkumtq0kw2jekjsr7924v: seq=1 height=1330410 time=82.524 s
-1 mojos from xch1gp0m20ygdcyd08asp3qd63my5la7eg58j46k3fkumtq0kw2jekjsr7924v: seq=2 height=1330419 time=128.271 s
---- xch12j86vecwyzks3ntkmp8ztzg06s3hmntju27zw0ganyjpjms6cchqn8nnv0 ping statistics ---
-3 transactions transmitted, 3 transactions confirmed, 3 transactions received, 0% packet loss
-round-trip min/avg/max/stddev = 82.524/108.380/128.271/23.449 s
+$ ./chia-ping.py -c 5
+PING txch1a95eaxlg67k9u4d8eakavgrk3gkprsjaxwdhgxqztcmeqc7huhjs5nypjm 1 mojos of chia with 0 fees.
+1 mojos to e9699e9be8d7ac5e55a7cf6dd620768a2c11c25d339b7418025e379063d7e5e5: seq=0 time=55.24 s
+1 mojos to e9699e9be8d7ac5e55a7cf6dd620768a2c11c25d339b7418025e379063d7e5e5: seq=1 time=46.72 s
+1 mojos to e9699e9be8d7ac5e55a7cf6dd620768a2c11c25d339b7418025e379063d7e5e5: seq=2 time=86.36 s
+1 mojos to e9699e9be8d7ac5e55a7cf6dd620768a2c11c25d339b7418025e379063d7e5e5: seq=3 time=75.51 s
+1 mojos to e9699e9be8d7ac5e55a7cf6dd620768a2c11c25d339b7418025e379063d7e5e5: seq=4 time=91.16 s
+--- txch1a95eaxlg67k9u4d8eakavgrk3gkprsjaxwdhgxqztcmeqc7huhjs5nypjm ping statistics ---
+5 transactions confirmed
+round-trip min/avg/max/stddev = 46.717/70.996/91.159/19.370 s
 ```
 
 ## Installation
@@ -23,22 +28,6 @@ $ python3 -m venv .venv
 $ source .venv/bin/activate
 $ pip3 install -U pip
 $ pip3 install -r requirements.txt
-```
-
-## Usage
-
-You need two computers with the [Chia Light Wallet Beta](https://www.chia.net/download/) running, each its own address.
-
-First, start the responder on one machine with the address of the other wallet.
-
-```console
-machineA $ chia-ping.py -r address_B
-```
-
-Get some mojos on address_A from the [faucet](https://faucet.chia.net/) and then, start pinging.
-
-```console
-machineB $ chia-ping.py address_A
 ```
 
 ---
